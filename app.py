@@ -2,6 +2,9 @@ import streamlit as st
 import folium
 from streamlit_folium import st_folium
 from neo4j import GraphDatabase
+import json
+import csv
+import io
 
 URI = "bolt://localhost:7687"
 AUTH = ("neo4j", "password")
@@ -46,8 +49,26 @@ def get_nearest_node(driver, lat, lon):
         return record["osmid"] if record else None
 
 
+# --- Функции для экспорта ---
+
+def convert_to_csv(data):
+    """Преобразует список словарей в CSV строку"""
+    if not data:
+        return ""
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=data[0].keys())
+    writer.writeheader()
+    writer.writerows(data)
+    return output.getvalue()
+
+
+def convert_to_json(data):
+    """Преобразует список словарей в JSON строку"""
+    return json.dumps(data, indent=2, ensure_ascii=False)
+
+
 st.set_page_config(layout="wide")
-st.title("Анализатор пешеходных маршрутов СПб")
+st.title("🚶‍♂️ Анализатор пешеходных маршрутов СПб")
 
 driver = get_driver()
 
@@ -61,18 +82,18 @@ if 'end_input' not in st.session_state:
 
 st.sidebar.header("Настройки маршрута")
 
-# Поля ввода берут значения из "памяти" приложения
+# Поля ввода
 start_node = st.sidebar.text_input("OSM ID старта", st.session_state.start_input)
 end_node = st.sidebar.text_input("OSM ID финиша", st.session_state.end_input)
 
-# Синхронизация: если пользователь ввел ID вручную, запоминаем его
+# Синхронизация
 st.session_state.start_input = start_node
 st.session_state.end_input = end_node
 
 build_btn = st.sidebar.button("Построить маршрут")
 
 st.sidebar.markdown("---")
-show_all_nodes = st.sidebar.checkbox("Показать все узлы графа")
+show_all_nodes = st.sidebar.checkbox("🌐 Показать все узлы графа")
 
 # Построение маршрута
 if build_btn and start_node and end_node:
@@ -106,9 +127,31 @@ if st.session_state.route_nodes:
 
     st.sidebar.markdown("### Анализ маршрута:")
     st.sidebar.write(f"🟢 Безопасные точки: {total_nodes - near_road_nodes}")
-    st.sidebar.write(f"🔴 Рядом с дорогой: {near_road_nodes}")
+    st.sidebar.write(f"🔴 Рядом с дорогой (до 20м): {near_road_nodes}")
     if total_nodes > 0:
         st.sidebar.progress((total_nodes - near_road_nodes) / total_nodes, text="Удаленность от дорог")
+
+    # === НОВЫЙ БЛОК: ЭКСПОРТ ===
+    st.sidebar.markdown("### 📥 Экспорт маршрута")
+    # Формируем данные для скачивания
+    csv_data = convert_to_csv(route_nodes)
+    json_data = convert_to_json(route_nodes)
+
+    col_exp1, col_exp2 = st.sidebar.columns(2)
+
+    col_exp1.download_button(
+        label="📄 CSV",
+        data=csv_data,
+        file_name=f"route_{start_node}_{end_node}.csv",
+        mime="text/csv"
+    )
+    col_exp2.download_button(
+        label="📋 JSON",
+        data=json_data,
+        file_name=f"route_{start_node}_{end_node}.json",
+        mime="application/json"
+    )
+    # ==========================
 
     for i in range(len(route_nodes) - 1):
         n1 = route_nodes[i]
@@ -127,15 +170,14 @@ if st.session_state.route_nodes:
     folium.Marker((route_nodes[-1]['lat'], route_nodes[-1]['lon']), popup="Финиш",
                   icon=folium.Icon(color='purple')).add_to(m)
 
-# забираем клики
+# Вывод карты
 map_data = st_folium(m, width=1200, height=600, returned_objects=["last_clicked"])
 
-# Если произошел клик по карте:
+# Обработка кликов
 if map_data and map_data.get("last_clicked"):
     click_lat = map_data["last_clicked"]["lat"]
     click_lon = map_data["last_clicked"]["lng"]
 
-    # Ищем ближайший узел к месту клика
     nearest_osmid = get_nearest_node(driver, click_lat, click_lon)
 
     if nearest_osmid:
@@ -145,7 +187,7 @@ if map_data and map_data.get("last_clicked"):
         col1, col2 = st.sidebar.columns(2)
         if col1.button("Сделать СТАРТОМ"):
             st.session_state.start_input = str(nearest_osmid)
-            st.rerun()  # Мгновенно перезагружает интерфейс
+            st.rerun()
         if col2.button("Сделать ФИНИШЕМ"):
             st.session_state.end_input = str(nearest_osmid)
             st.rerun()
