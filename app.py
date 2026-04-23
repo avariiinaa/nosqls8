@@ -68,7 +68,7 @@ def convert_to_json(data):
 
 
 st.set_page_config(layout="wide")
-st.title("🚶‍♂️ Анализатор пешеходных маршрутов СПб")
+st.title("Анализатор пешеходных маршрутов СПб")
 
 driver = get_driver()
 
@@ -93,7 +93,7 @@ st.session_state.end_input = end_node
 build_btn = st.sidebar.button("Построить маршрут")
 
 st.sidebar.markdown("---")
-show_all_nodes = st.sidebar.checkbox("🌐 Показать все узлы графа")
+show_all_nodes = st.sidebar.checkbox("Показать все узлы графа")
 
 # Построение маршрута
 if build_btn and start_node and end_node:
@@ -126,13 +126,13 @@ if st.session_state.route_nodes:
     near_road_nodes = sum(1 for n in route_nodes if n['near_road'])
 
     st.sidebar.markdown("### Анализ маршрута:")
-    st.sidebar.write(f"🟢 Безопасные точки: {total_nodes - near_road_nodes}")
-    st.sidebar.write(f"🔴 Рядом с дорогой (до 20м): {near_road_nodes}")
+    st.sidebar.write(f" Безопасные точки: {total_nodes - near_road_nodes}")
+    st.sidebar.write(f" Рядом с дорогой (до 20м): {near_road_nodes}")
     if total_nodes > 0:
         st.sidebar.progress((total_nodes - near_road_nodes) / total_nodes, text="Удаленность от дорог")
 
     # === НОВЫЙ БЛОК: ЭКСПОРТ ===
-    st.sidebar.markdown("### 📥 Экспорт маршрута")
+    st.sidebar.markdown("### Экспорт маршрута")
     # Формируем данные для скачивания
     csv_data = convert_to_csv(route_nodes)
     json_data = convert_to_json(route_nodes)
@@ -140,13 +140,13 @@ if st.session_state.route_nodes:
     col_exp1, col_exp2 = st.sidebar.columns(2)
 
     col_exp1.download_button(
-        label="📄 CSV",
+        label=" CSV",
         data=csv_data,
         file_name=f"route_{start_node}_{end_node}.csv",
         mime="text/csv"
     )
     col_exp2.download_button(
-        label="📋 JSON",
+        label="JSON",
         data=json_data,
         file_name=f"route_{start_node}_{end_node}.json",
         mime="application/json"
@@ -182,7 +182,7 @@ if map_data and map_data.get("last_clicked"):
 
     if nearest_osmid:
         st.sidebar.markdown("---")
-        st.sidebar.success(f"📍 Вы кликнули на карту.\n\nБлижайший узел: **{nearest_osmid}**")
+        st.sidebar.success(f"Вы кликнули на карту.\n\nБлижайший узел: **{nearest_osmid}**")
 
         col1, col2 = st.sidebar.columns(2)
         if col1.button("Сделать СТАРТОМ"):
